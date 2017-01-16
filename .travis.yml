@@ -1,26 +1,44 @@
-language: csharp
+sudo: required
+dist: trusty
+
+language: node_js
 
 matrix:
   include:
-    - os: linux
-      dist: trusty
-      sudo: required
-      mono: 4.2.3
-      dotnet: 1.0.0-preview2-003121
     - os: osx
-      osx_image: xcode8
-      mono: 4.2.3
-      dotnet: 1.0.0-preview2-003121
+      node_js: 6
+    - os: linux
+      node_js: 6
+      env: CC=clang CXX=clang++ npm_config_clang=1
+      compiler: clang
+
+cache:
+  directories:
+    - node_modules
+    - app/node_modules
+    - $HOME/.electron
+    - $HOME/.cache
+
+addons:
+  apt:
+    packages:
+      - libgnome-keyring-dev
+      - icnsutils
+      - graphicsmagick
+      - xz-utils
+      - rpm
+      - bsdtar
 
 before_install:
-  - if test "$TRAVIS_OS_NAME" == "osx"; then ln -s /usr/local/opt/openssl/lib/libcrypto.1.0.0.dylib /usr/local/lib/; ln -s /usr/local/opt/openssl/lib/libssl.1.0.0.dylib /usr/local/lib/; fi
+  - mkdir -p /tmp/git-lfs && curl -L https://github.com/github/git-lfs/releases/download/v1.2.1/git-lfs-$([ "$TRAVIS_OS_NAME" == "linux" ] && echo "linux" || echo "darwin")-amd64-1.2.1.tar.gz | tar -xz -C /tmp/git-lfs --strip-components 1 && /tmp/git-lfs/git-lfs pull
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export DISPLAY=:99.0; sh -e /etc/init.d/xvfb start; sleep 3; fi
 
-install:
-  - nuget restore Octokit-Mono.sln
+before_script:
+  - npm prune
 
-script:
-  - mono tools/nuget/NuGet.exe restore Octokit-Mono.sln
-  - ./build.sh BuildMono
-  - ./build.sh
-  - dotnet --info
-  - ./build.sh UnitTestsDotNetCore
+after_success:
+  - npm run dist
+
+branches:
+  except:
+    - "/^v\\d+\\.\\d+\\.\\d+$/"
